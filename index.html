@@ -249,10 +249,59 @@
             border-left-width: 30px;
             border-bottom-width: 30px;
         }
+
+        /* Download button styling */
+        .download-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 12px 25px;
+            font-family: 'Kalam', cursive;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            margin-left: 10px;
+        }
+
+        .download-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+
+        .download-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Header controls */
+        .header-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 15;
+            display: none;
+        }
+
+        .header-controls.show {
+            display: flex;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="notebook">
+        <!-- Header Controls -->
+        <div class="header-controls" id="headerControls">
+            <button class="download-btn" onclick="downloadNotebook()" id="downloadBtn">
+                📄 Download PDF
+            </button>
+        </div>
+
         <!-- Spiral binding -->
         <div class="spiral">
             <div class="spiral-ring"></div>
@@ -379,6 +428,7 @@
             const prevBtn = document.getElementById('prevBtn');
             const nextBtn = document.getElementById('nextBtn');
             const homeBtn = document.getElementById('homeBtn');
+            const headerControls = document.getElementById('headerControls');
             
             prevBtn.disabled = currentPage <= 1;
             nextBtn.disabled = currentPage >= pages.length - 1;
@@ -387,10 +437,170 @@
                 prevBtn.style.display = 'none';
                 nextBtn.style.display = 'none';
                 homeBtn.style.display = 'none';
+                headerControls.classList.remove('show');
             } else {
                 prevBtn.style.display = 'flex';
                 nextBtn.style.display = 'flex';
                 homeBtn.style.display = 'flex';
+                checkForContent(); // Check if we should show download button
+            }
+        }
+
+        // PDF Download Functionality
+        function downloadNotebook() {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            
+            // Get user name and content
+            const userName = document.getElementById('nameInput').value.trim() || 'My';
+            const page1Content = document.querySelector('#page1 .writing-area').value;
+            const page2Content = document.querySelector('#page2 .writing-area').value;
+            const page3Content = document.querySelector('#page3 .writing-area').value;
+            
+            // Check if there's any content to download
+            if (!page1Content && !page2Content && !page3Content) {
+                alert('Please write something in your notebook before downloading!');
+                return;
+            }
+            
+            // PDF styling constants
+            const pageWidth = 210; // A4 width in mm
+            const pageHeight = 297; // A4 height in mm
+            const margin = 20;
+            const lineHeight = 7;
+            const maxWidth = pageWidth - (margin * 2);
+            
+            // Create cover page
+            createCoverPage(pdf, userName, pageWidth, pageHeight, margin);
+            
+            // Add content pages
+            let pageNumber = 1;
+            if (page1Content) {
+                pdf.addPage();
+                createContentPage(pdf, `${userName}'s Notebook - Page ${pageNumber}`, page1Content, pageWidth, pageHeight, margin, lineHeight, maxWidth);
+                pageNumber++;
+            }
+            
+            if (page2Content) {
+                pdf.addPage();
+                createContentPage(pdf, `${userName}'s Notebook - Page ${pageNumber}`, page2Content, pageWidth, pageHeight, margin, lineHeight, maxWidth);
+                pageNumber++;
+            }
+            
+            if (page3Content) {
+                pdf.addPage();
+                createContentPage(pdf, `${userName}'s Notebook - Page ${pageNumber}`, page3Content, pageWidth, pageHeight, margin, lineHeight, maxWidth);
+            }
+            
+            // Download the PDF
+            const fileName = `${userName.replace(/[^a-zA-Z0-9]/g, '_')}_Notebook_${new Date().toISOString().split('T')[0]}.pdf`;
+            pdf.save(fileName);
+        }
+        
+        function createCoverPage(pdf, userName, pageWidth, pageHeight, margin) {
+            // Cover background (brown gradient effect)
+            pdf.setFillColor(139, 69, 19); // Brown color
+            pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+            
+            // Golden border
+            pdf.setDrawColor(255, 215, 0); // Gold color
+            pdf.setLineWidth(2);
+            pdf.rect(margin, margin, pageWidth - (margin * 2), pageHeight - (margin * 2));
+            
+            // Title
+            pdf.setTextColor(255, 255, 255); // White text
+            pdf.setFontSize(36);
+            pdf.setFont('helvetica', 'bold');
+            const titleText = 'My Personal Notebook';
+            const titleWidth = pdf.getTextWidth(titleText);
+            pdf.text(titleText, (pageWidth - titleWidth) / 2, pageHeight / 2 - 30);
+            
+            // Owner name
+            pdf.setFontSize(24);
+            pdf.setFont('helvetica', 'normal');
+            const ownerText = `${userName}'s Notebook`;
+            const ownerWidth = pdf.getTextWidth(ownerText);
+            pdf.text(ownerText, (pageWidth - ownerWidth) / 2, pageHeight / 2 + 10);
+            
+            // Date
+            pdf.setFontSize(14);
+            const dateText = `Created on: ${new Date().toLocaleDateString()}`;
+            const dateWidth = pdf.getTextWidth(dateText);
+            pdf.text(dateText, (pageWidth - dateWidth) / 2, pageHeight / 2 + 40);
+        }
+        
+        function createContentPage(pdf, header, content, pageWidth, pageHeight, margin, lineHeight, maxWidth) {
+            // White background
+            pdf.setFillColor(255, 255, 255);
+            pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+            
+            // Draw ruled lines
+            pdf.setDrawColor(221, 221, 221); // Light gray for lines
+            pdf.setLineWidth(0.2);
+            for (let y = 60; y < pageHeight - margin; y += lineHeight) {
+                pdf.line(margin + 20, y, pageWidth - margin, y);
+            }
+            
+            // Red margin line
+            pdf.setDrawColor(255, 107, 107); // Red color
+            pdf.setLineWidth(0.5);
+            pdf.line(margin + 20, margin, margin + 20, pageHeight - margin);
+            
+            // Page header
+            pdf.setTextColor(51, 51, 51); // Dark gray
+            pdf.setFontSize(16);
+            pdf.setFont('helvetica', 'bold');
+            const headerWidth = pdf.getTextWidth(header);
+            pdf.text(header, (pageWidth - headerWidth) / 2, 40);
+            
+            // Underline header
+            pdf.setDrawColor(221, 221, 221);
+            pdf.setLineWidth(0.5);
+            pdf.line(margin + 40, 45, pageWidth - margin - 40, 45);
+            
+            // Content
+            if (content) {
+                pdf.setTextColor(44, 90, 160); // Blue color for text (like pen ink)
+                pdf.setFontSize(12);
+                pdf.setFont('helvetica', 'normal');
+                
+                // Split content into lines that fit the page width
+                const lines = pdf.splitTextToSize(content, maxWidth - 30);
+                let yPosition = 65;
+                
+                lines.forEach(line => {
+                    if (yPosition > pageHeight - margin - 20) {
+                        // If we're near the bottom, stop adding text
+                        return;
+                    }
+                    pdf.text(line, margin + 25, yPosition);
+                    yPosition += lineHeight;
+                });
+            }
+            
+            // Add subtle page number
+            pdf.setTextColor(153, 153, 153); // Light gray
+            pdf.setFontSize(10);
+            const pageNum = pdf.internal.getCurrentPageInfo().pageNumber;
+            pdf.text(`${pageNum - 1}`, pageWidth - margin - 10, pageHeight - 10);
+        }
+        
+        // Show download button when user starts writing
+        function checkForContent() {
+            const textareas = document.querySelectorAll('.writing-area');
+            let hasContent = false;
+            
+            textareas.forEach(textarea => {
+                if (textarea.value.trim()) {
+                    hasContent = true;
+                }
+            });
+            
+            const headerControls = document.getElementById('headerControls');
+            if (hasContent) {
+                headerControls.classList.add('show');
+            } else {
+                headerControls.classList.remove('show');
             }
         }
         
@@ -489,6 +699,9 @@
                     
                     // Visual feedback
                     this.style.color = '#2c5aa0';
+                    
+                    // Check if we should show download button
+                    checkForContent();
                 });
                 
                 // Initialize audio context on first interaction
