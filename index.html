@@ -2,51 +2,504 @@
 <html>
 <head>
     <meta charset="UTF-8" />
-    <title>NootBook</title>
+    <title>NootBook - Interactive Notebook</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        body {
+        * {
             margin: 0;
-            padding: 20px;
-            background-color: #f8f8f8;
-            font-family: 'Courier New', monospace;
+            padding: 0;
+            box-sizing: border-box;
         }
-        
-        .paper {
-            background-color: #ffffff;
+
+        body {
+            background: linear-gradient(135deg, #8B4513, #D2B48C);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Kalam', cursive;
+            perspective: 1000px;
+        }
+
+        .notebook {
+            position: relative;
+            width: 600px;
+            height: 800px;
+            transform-style: preserve-3d;
+        }
+
+        .page {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: #f9f9f9;
+            border: 2px solid #8B4513;
+            border-radius: 10px;
+            transform-origin: left center;
+            transition: transform 0.8s ease-in-out;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            backface-visibility: hidden;
+        }
+
+        .page.flipped {
+            transform: rotateY(-180deg);
+        }
+
+        /* Cover Page */
+        .cover-page {
+            background: linear-gradient(45deg, #8B4513, #A0522D);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .cover-page::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
+            border: 3px solid #FFD700;
+            border-radius: 8px;
+        }
+
+        .cover-title {
+            font-family: 'Caveat', cursive;
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 1;
+        }
+
+        .name-input {
+            background: rgba(255,255,255,0.9);
+            border: none;
+            border-radius: 8px;
+            padding: 15px 20px;
+            font-family: 'Caveat', cursive;
+            font-size: 1.8rem;
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            width: 300px;
+            z-index: 1;
+        }
+
+        .turn-page-btn {
+            background: #FFD700;
+            color: #8B4513;
+            border: none;
+            border-radius: 25px;
+            padding: 15px 30px;
+            font-family: 'Kalam', cursive;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 1;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .turn-page-btn:hover {
+            background: #FFA500;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+
+        /* Inside Pages */
+        .inside-page {
+            background: #ffffff;
             background-image: 
                 linear-gradient(90deg, #ff6b6b 1px, transparent 1px),
                 linear-gradient(180deg, #ddd 1px, transparent 1px);
-            background-size: 3px 25px, 100% 25px;
-            background-position: 30px 0, 0 0;
-            min-height: 100vh;
-            padding: 40px 50px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            background-size: 3px 30px, 100% 30px;
+            background-position: 40px 0, 0 0;
+            padding: 60px 60px 60px 80px;
             position: relative;
+            z-index: 1;
         }
-        
-        .paper::before {
+
+        .inside-page::before {
             content: '';
             position: absolute;
-            left: 30px;
+            left: 40px;
             top: 0;
             bottom: 0;
             width: 2px;
             background-color: #ff6b6b;
         }
-        
-        .content {
-            margin-left: 20px;
-            line-height: 25px;
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 40px;
+            font-family: 'Caveat', cursive;
+            font-size: 2rem;
+            color: #333;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 10px;
+        }
+
+        .writing-area {
+            width: 100%;
+            height: 500px;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-family: 'Caveat', cursive;
+            font-size: 1.4rem;
+            line-height: 30px;
+            color: #2c5aa0;
+            resize: none;
+            padding: 0;
+        }
+
+        .writing-area::placeholder {
+            color: #999;
+            font-style: italic;
+        }
+
+        /* Page navigation */
+        .page-nav {
+            position: absolute;
+            bottom: 20px;
+            right: 30px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .nav-btn {
+            background: #8B4513;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-btn:hover {
+            background: #A0522D;
+            transform: scale(1.1);
+        }
+
+        .nav-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Spiral binding effect */
+        .spiral {
+            position: absolute;
+            left: -15px;
+            top: 50px;
+            width: 30px;
+            height: 700px;
+            z-index: 10;
+        }
+
+        .spiral-ring {
+            width: 20px;
+            height: 20px;
+            border: 3px solid #333;
+            border-radius: 50%;
+            margin: 25px 0;
+            background: linear-gradient(45deg, #666, #999);
+        }
+
+        /* Handwriting animation */
+        @keyframes handwrite {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+
+        .handwriting {
+            overflow: hidden;
+            white-space: nowrap;
+            animation: handwrite 2s steps(40, end);
+        }
+
+        /* Page corner curl effect */
+        .page-corner {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-bottom: 20px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+
+        .page:hover .page-corner {
+            border-left-width: 30px;
+            border-bottom-width: 30px;
         }
     </style>
 </head>
 <body>
-    <div class="paper">
-        <div class="content">
-            <!-- Your content goes here -->
-            <h1>Welcome to my notebook</h1>
-            <p>This is a paper-like background with lines, perfect for writing content that looks like it's on ruled paper.</p>
+    <div class="notebook">
+        <!-- Spiral binding -->
+        <div class="spiral">
+            <div class="spiral-ring"></div>
+            <div class="spiral-ring"></div>
+            <div class="spiral-ring"></div>
+            <div class="spiral-ring"></div>
+            <div class="spiral-ring"></div>
+            <div class="spiral-ring"></div>
+            <div class="spiral-ring"></div>
+            <div class="spiral-ring"></div>
+            <div class="spiral-ring"></div>
+            <div class="spiral-ring"></div>
+            <div class="spiral-ring"></div>
+            <div class="spiral-ring"></div>
+            <div class="spiral-ring"></div>
+            <div class="spiral-ring"></div>
+        </div>
+
+        <!-- Cover Page -->
+        <div class="page cover-page" id="coverPage">
+            <h1 class="cover-title">My Personal Notebook</h1>
+            <input type="text" class="name-input" placeholder="Write your name here..." id="nameInput">
+            <button class="turn-page-btn" onclick="turnPage()">Open Notebook →</button>
+            <div class="page-corner"></div>
+        </div>
+
+        <!-- Inside Pages -->
+        <div class="page inside-page" id="page1" style="display: none;">
+            <div class="page-header">
+                <span id="ownerName">My</span> Notebook - Page 1
+            </div>
+            <textarea class="writing-area" placeholder="Start writing your thoughts here... Let your creativity flow like handwriting on paper!"></textarea>
+            <div class="page-corner"></div>
+        </div>
+
+        <div class="page inside-page" id="page2" style="display: none;">
+            <div class="page-header">
+                <span id="ownerName2">My</span> Notebook - Page 2
+            </div>
+            <textarea class="writing-area" placeholder="Continue your story on this page..."></textarea>
+            <div class="page-corner"></div>
+        </div>
+
+        <div class="page inside-page" id="page3" style="display: none;">
+            <div class="page-header">
+                <span id="ownerName3">My</span> Notebook - Page 3
+            </div>
+            <textarea class="writing-area" placeholder="More space for your wonderful ideas..."></textarea>
+            <div class="page-corner"></div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="page-nav">
+            <button class="nav-btn" onclick="previousPage()" id="prevBtn" disabled>‹</button>
+            <button class="nav-btn" onclick="nextPage()" id="nextBtn">›</button>
+            <button class="nav-btn" onclick="goToCover()" id="homeBtn" style="display: none;">🏠</button>
         </div>
     </div>
+
+    <script>
+        let currentPage = 0;
+        const pages = ['coverPage', 'page1', 'page2', 'page3'];
+        
+        function turnPage() {
+            const name = document.getElementById('nameInput').value.trim();
+            if (name) {
+                document.getElementById('ownerName').textContent = name + "'s";
+                document.getElementById('ownerName2').textContent = name + "'s";
+                document.getElementById('ownerName3').textContent = name + "'s";
+            }
+            
+            playFlipSound(); // Add page flip sound
+            document.getElementById('coverPage').classList.add('flipped');
+            setTimeout(() => {
+                document.getElementById('coverPage').style.display = 'none';
+                document.getElementById('page1').style.display = 'block';
+                currentPage = 1;
+                updateNavigation();
+            }, 400);
+        }
+        
+        function nextPage() {
+            if (currentPage < pages.length - 1) {
+                const currentEl = document.getElementById(pages[currentPage]);
+                const nextEl = document.getElementById(pages[currentPage + 1]);
+                
+                playFlipSound(); // Add page flip sound
+                currentEl.classList.add('flipped');
+                setTimeout(() => {
+                    currentEl.style.display = 'none';
+                    nextEl.style.display = 'block';
+                    currentPage++;
+                    updateNavigation();
+                }, 400);
+            }
+        }
+        
+        function previousPage() {
+            if (currentPage > 1) {
+                const currentEl = document.getElementById(pages[currentPage]);
+                const prevEl = document.getElementById(pages[currentPage - 1]);
+                
+                playFlipSound(); // Add page flip sound
+                currentEl.style.display = 'none';
+                prevEl.style.display = 'block';
+                prevEl.classList.remove('flipped');
+                currentPage--;
+                updateNavigation();
+            }
+        }
+        
+        function goToCover() {
+            const currentEl = document.getElementById(pages[currentPage]);
+            const coverEl = document.getElementById('coverPage');
+            
+            currentEl.style.display = 'none';
+            coverEl.style.display = 'flex';
+            coverEl.classList.remove('flipped');
+            currentPage = 0;
+            updateNavigation();
+        }
+        
+        function updateNavigation() {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const homeBtn = document.getElementById('homeBtn');
+            
+            prevBtn.disabled = currentPage <= 1;
+            nextBtn.disabled = currentPage >= pages.length - 1;
+            
+            if (currentPage === 0) {
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+                homeBtn.style.display = 'none';
+            } else {
+                prevBtn.style.display = 'flex';
+                nextBtn.style.display = 'flex';
+                homeBtn.style.display = 'flex';
+            }
+        }
+        
+        // Audio Context for sound effects
+        let audioContext = null;
+        
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioContext;
+        }
+        
+        // Create typing sound effect
+        function playTypingSound() {
+            const context = initAudioContext();
+            if (!context) return;
+            
+            // Create oscillator for the typing sound
+            const oscillator = context.createOscillator();
+            const gainNode = context.createGain();
+            
+            // Connect nodes
+            oscillator.connect(gainNode);
+            gainNode.connect(context.destination);
+            
+            // Set sound parameters for realistic typing
+            oscillator.frequency.setValueAtTime(400 + Math.random() * 200, context.currentTime);
+            oscillator.type = 'square';
+            
+            // Set volume (very subtle)
+            gainNode.gain.setValueAtTime(0, context.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.02, context.currentTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.1);
+            
+            // Play the sound
+            oscillator.start(context.currentTime);
+            oscillator.stop(context.currentTime + 0.1);
+        }
+        
+        // Create page flip sound effect
+        function playFlipSound() {
+            const context = initAudioContext();
+            if (!context) return;
+            
+            // Create a more complex sound for page flipping
+            const oscillator1 = context.createOscillator();
+            const oscillator2 = context.createOscillator();
+            const gainNode = context.createGain();
+            const filter = context.createBiquadFilter();
+            
+            // Connect nodes
+            oscillator1.connect(filter);
+            oscillator2.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(context.destination);
+            
+            // Set parameters for paper flip sound
+            oscillator1.frequency.setValueAtTime(200, context.currentTime);
+            oscillator1.frequency.exponentialRampToValueAtTime(100, context.currentTime + 0.3);
+            oscillator2.frequency.setValueAtTime(400, context.currentTime);
+            oscillator2.frequency.exponentialRampToValueAtTime(200, context.currentTime + 0.3);
+            
+            oscillator1.type = 'sawtooth';
+            oscillator2.type = 'triangle';
+            
+            // Filter for more realistic sound
+            filter.frequency.setValueAtTime(1000, context.currentTime);
+            filter.Q.setValueAtTime(1, context.currentTime);
+            
+            // Volume envelope
+            gainNode.gain.setValueAtTime(0, context.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.05, context.currentTime + 0.05);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.4);
+            
+            // Play the sound
+            oscillator1.start(context.currentTime);
+            oscillator2.start(context.currentTime);
+            oscillator1.stop(context.currentTime + 0.4);
+            oscillator2.stop(context.currentTime + 0.4);
+        }
+
+        // Add handwriting effect and typing sounds to textareas
+        document.addEventListener('DOMContentLoaded', function() {
+            const textareas = document.querySelectorAll('.writing-area');
+            let lastTypingTime = 0;
+            
+            textareas.forEach(textarea => {
+                textarea.addEventListener('input', function(e) {
+                    // Add typing sound effect with throttling
+                    const now = Date.now();
+                    if (now - lastTypingTime > 50) { // Throttle to prevent too many sounds
+                        playTypingSound();
+                        lastTypingTime = now;
+                    }
+                    
+                    // Visual feedback
+                    this.style.color = '#2c5aa0';
+                });
+                
+                // Initialize audio context on first interaction
+                textarea.addEventListener('focus', function() {
+                    initAudioContext();
+                }, { once: true });
+            });
+            
+            // Initialize audio context on any user interaction
+            document.addEventListener('click', initAudioContext, { once: true });
+        });
+    </script>
 </body>
 </html>
